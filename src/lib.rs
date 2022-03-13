@@ -10,6 +10,8 @@ use nom::IResult;
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
 use std::collections::HashSet;
+use std::fmt;
+
 #[pyclass]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptFragment {
@@ -19,17 +21,42 @@ pub struct PromptFragment {
     pub option: Option<HashSet<String>>,
 }
 
+#[pyclass]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PromptTemplate {
+    #[pyo3(get, set)]
+    pub fragments: Vec<PromptFragment>,
+}
+
 #[pymethods]
-impl PromptFragment {
+impl PromptTemplate {
+    #[new]
+    fn new(template: &str) -> PyResult<Self> {
+        Ok(PromptTemplate {
+            fragments: py_parse_markup(template)?,
+        })
+    }
+
     fn __str__(slf: PyRef<Self>) -> String {
-        match &slf.option {
-            Some(_) => format!("[{}]", slf.string),
-            None => format!("{}", slf.string),
-        }
+        slf.fragments.iter().join("")
     }
 
     fn __repr__(slf: PyRef<Self>) -> String {
+        slf.fragments.iter().join("")
+    }
+}
+
+#[pymethods]
+impl PromptFragment {
+    fn __str__(slf: PyRef<Self>) -> String {
         slf.display()
+    }
+
+    fn __repr__(slf: PyRef<Self>) -> String {
+        match &slf.option {
+            Some(_) => format!("[{}]", slf.string),
+            None => format!("\"{}\"", slf.string),
+        }
     }
 }
 
@@ -53,15 +80,21 @@ impl PromptFragment {
     }
 
     fn display(self: &Self) -> String {
+        format!("{}", self)
+    }
+}
+
+impl fmt::Display for PromptFragment {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.option {
             Some(option) => {
                 if option.is_empty() {
-                    format!("[{}]", self.string)
+                    write!(f, "[{}]", self.string)
                 } else {
-                    format!("[{}|{}]", self.string, option.iter().join(","))
+                    write!(f, "[{}|{}]", self.string, option.iter().join(","))
                 }
             }
-            None => format!("\"{}\"", self.string),
+            None => write!(f, "{}", self.string),
         }
     }
 }
@@ -130,7 +163,10 @@ fn py_parse_markup(template: &str) -> PyResult<Vec<PromptFragment>> {
 
 #[pymodule]
 fn promptengine(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_function(wrap_pyfunction!(py_parse_markup, m)?)?;
+    m.add_class::<PromptFragment>()?;
+    m.add_class::<PromptTemplate>()?;
     Ok(())
 }
 
