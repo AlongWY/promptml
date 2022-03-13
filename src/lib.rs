@@ -195,6 +195,7 @@ fn py_parse_markup(template: &str) -> PyResult<Vec<PromptFragment>> {
 }
 
 #[pymodule]
+#[pyo3(name = "promptml")]
 fn promptengine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_function(wrap_pyfunction!(py_parse_markup, m)?)?;

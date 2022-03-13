@@ -2,7 +2,7 @@ from itertools import chain
 from typing import List, Union
 from datasets import Dataset, DatasetDict
 from transformers import PreTrainedTokenizer
-from promptengine import parse_markup, PromptFragment
+from promptml import parse_markup, PromptFragment
 
 
 class PromptTemplate:

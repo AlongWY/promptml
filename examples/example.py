@@ -1,4 +1,4 @@
-from promptengine import PromptTemplate
+from promptml import PromptTemplate
 
 
 def main():
