@@ -15,6 +15,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 nom = { version = "7" }
+itertools = { version = "0.10.3" }
 pyo3 = { version = "0.16.1", features = ["extension-module"] }
 
 [package.metadata.maturin]

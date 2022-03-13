@@ -1,9 +1,9 @@
-from typing import List
+from typing import List, Optional, Set
 
 
 class PromptFragment:
     string: str
-    is_control: bool
+    option: Optional[Set[str]]
 
     def __init__(self):
         pass

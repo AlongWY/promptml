@@ -1,37 +1,35 @@
+use itertools::Itertools;
 use nom::branch::alt;
-use nom::bytes::complete::is_not;
+use nom::bytes::complete::{is_a, is_not, tag};
 use nom::character::complete::char;
-use nom::combinator::{map, verify};
+use nom::combinator::{map, opt, verify};
 use nom::error::{FromExternalError, ParseError};
-use nom::multi::fold_many0;
-use nom::sequence::delimited;
+use nom::multi::{fold_many0, separated_list0};
+use nom::sequence::{delimited, pair, preceded};
 use nom::IResult;
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
-
+use std::collections::HashSet;
 #[pyclass]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptFragment {
     #[pyo3(get, set)]
     pub string: String,
     #[pyo3(get, set)]
-    pub is_control: bool,
+    pub option: Option<HashSet<String>>,
 }
 
 #[pymethods]
 impl PromptFragment {
     fn __str__(slf: PyRef<Self>) -> String {
-        match slf.is_control {
-            true => format!("[{}]", slf.string),
-            false => format!("\"{}\"", slf.string),
+        match &slf.option {
+            Some(_) => format!("[{}]", slf.string),
+            None => format!("{}", slf.string),
         }
     }
 
     fn __repr__(slf: PyRef<Self>) -> String {
-        match slf.is_control {
-            true => format!("[{}]", slf.string),
-            false => format!("\"{}\"", slf.string),
-        }
+        slf.display()
     }
 }
 
@@ -39,23 +37,53 @@ impl PromptFragment {
     fn string(value: &str) -> Self {
         PromptFragment {
             string: String::from(value),
-            is_control: false,
+            option: None,
         }
     }
 
-    fn control(value: &str) -> Self {
+    fn control(value: (&str, Option<Vec<&str>>)) -> Self {
+        let (value, option) = value;
         PromptFragment {
             string: String::from(value),
-            is_control: true,
+            option: match option {
+                None => Some(Default::default()),
+                Some(value) => Some(value.into_iter().map(|x| x.to_string()).collect()),
+            },
+        }
+    }
+
+    fn display(self: &Self) -> String {
+        match &self.option {
+            Some(option) => {
+                if option.is_empty() {
+                    format!("[{}]", self.string)
+                } else {
+                    format!("[{}|{}]", self.string, option.iter().join(","))
+                }
+            }
+            None => format!("\"{}\"", self.string),
         }
     }
 }
 
-fn parse_control<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E>
+fn parse_control<'a, E: ParseError<&'a str>>(
+    input: &'a str,
+) -> IResult<&'a str, (&'a str, Option<Vec<&'a str>>), E>
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
-    delimited(char('['), parse_string, char(']'))(input)
+    let parse_control_option =
+        preceded(tag("|"), separated_list0(is_a("#,"), parse_control_string));
+    let control = pair(parse_control_string, opt(parse_control_option));
+    delimited(char('['), control, char(']'))(input)
+}
+
+fn parse_control_string<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
+where
+    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+{
+    let not_control = is_not("[]|#,");
+    verify(not_control, |s: &str| !s.is_empty())(input)
 }
 
 fn parse_string<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
@@ -115,7 +143,7 @@ mod tests {
     fn test_static_str() {
         assert_eq!(
             parse_markup::<()>("[hello]"),
-            Ok(("", vec![PromptFragment::control("hello")]))
+            Ok(("", vec![PromptFragment::control(("hello", None))]))
         );
         assert_eq!(
             parse_markup::<()>("hello"),
@@ -127,7 +155,7 @@ mod tests {
                 "",
                 vec![
                     PromptFragment::string("hello"),
-                    PromptFragment::control("hello")
+                    PromptFragment::control(("hello", None))
                 ]
             ))
         );
