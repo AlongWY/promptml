@@ -2,7 +2,7 @@ use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, is_not, tag};
 use nom::character::complete::char;
-use nom::combinator::{map, opt, verify};
+use nom::combinator::{map, opt, value, verify};
 use nom::error::{FromExternalError, ParseError};
 use nom::multi::{fold_many0, separated_list0};
 use nom::sequence::{delimited, pair, preceded};
@@ -61,6 +61,13 @@ impl PromptFragment {
 }
 
 impl PromptFragment {
+    fn char(value: char) -> Self {
+        PromptFragment {
+            string: String::from(value),
+            option: None,
+        }
+    }
+
     fn string(value: &str) -> Self {
         PromptFragment {
             string: String::from(value),
@@ -119,11 +126,25 @@ where
     verify(not_control, |s: &str| !s.is_empty())(input)
 }
 
+fn parse_escaped_char<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
+where
+    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+{
+    preceded(
+        char('\\'),
+        alt((
+            value('\\', char('\\')),
+            value('[', char('[')),
+            value(']', char(']')),
+        )),
+    )(input)
+}
+
 fn parse_string<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
-    let not_control = is_not("[]");
+    let not_control = is_not("\\[]");
     verify(not_control, |s: &str| !s.is_empty())(input)
 }
 
@@ -132,6 +153,7 @@ where
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
     alt((
+        map(parse_escaped_char, PromptFragment::char),
         map(parse_control, PromptFragment::control),
         map(parse_string, PromptFragment::string),
     ))(input)
@@ -146,7 +168,18 @@ where
         parse_fragment,
         Vec::new,
         |mut vec, fragment| {
-            vec.push(fragment);
+            match vec.last_mut() {
+                None => {
+                    vec.push(fragment);
+                }
+                Some(last) => {
+                    if last.option.is_none() && fragment.option.is_none() {
+                        last.string.push_str(&fragment.string)
+                    } else {
+                        vec.push(fragment);
+                    }
+                }
+            }
             vec
         },
     );
@@ -176,7 +209,15 @@ mod tests {
     use crate::PromptFragment;
 
     #[test]
-    fn test_static_str() {
+    fn it_works() {
+        assert_eq!(
+            parse_markup::<()>("\\[hello\\]"),
+            Ok(("", vec![PromptFragment::string("[hello]"),]))
+        );
+        assert_eq!(
+            parse_markup::<()>("\\\\"),
+            Ok(("", vec![PromptFragment::string("\\"),]))
+        );
         assert_eq!(
             parse_markup::<()>("[hello]"),
             Ok(("", vec![PromptFragment::control(("hello", None))]))
