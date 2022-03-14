@@ -43,6 +43,8 @@ class PromptTemplate:
             else:
                 self.post_fragments.append(current)
 
+        self.auto_limit = len(self.pre_fragments) == 1
+
     def render(self, data: Union[dict, Union[Dataset, DatasetDict]], max_length=128):
         if isinstance(data, Dataset) or isinstance(data, DatasetDict):
             return self.render_dataset(data, max_length=max_length)
@@ -65,20 +67,26 @@ class PromptTemplate:
                 return_attention_mask=False
             )['input_ids']
 
+        auto_limit = self.auto_limit
+        post_fragments = self.post_fragments
         total_length = sum(
-            [len(example[p.string]) if isinstance(p, PromptFragment) else len(p) for p in self.post_fragments]
+            [len(example[p.string]) if isinstance(p, PromptFragment) else len(p) for p in post_fragments]
         )
         if total_length > max_length:
             length_pruning = total_length - max_length
+
             input_ids = list(chain.from_iterable(
                 [
-                    (example[p.string][:-length_pruning] if 'limit' in p.option else example[p.string])
-                    if isinstance(p, PromptFragment) else p for p in self.post_fragments
+                    (
+                        example[p.string][:-length_pruning]
+                        if ('limit' in p.option or auto_limit) else example[p.string]
+                    )
+                    if isinstance(p, PromptFragment) else p for p in post_fragments
                 ]
             ))
         else:
             input_ids = list(chain.from_iterable(
-                [example[p.string] if isinstance(p, PromptFragment) else p for p in self.post_fragments]
+                [example[p.string] if isinstance(p, PromptFragment) else p for p in post_fragments]
             ))
 
         input_ids_len = len(input_ids)
@@ -118,6 +126,7 @@ class PromptTemplate:
                 batched=True
             )
 
+        auto_limit = self.auto_limit
         post_fragments = self.post_fragments
         mask_token_id = self.tokenizer.mask_token_id
         pad_token_id = self.tokenizer.pad_token_id
@@ -130,7 +139,10 @@ class PromptTemplate:
                 length_pruning = total_length - max_length
                 input_ids = list(chain.from_iterable(
                     [
-                        (example[p.string][:-length_pruning] if 'limit' in p.option else example[p.string])
+                        (
+                            example[p.string][:-length_pruning]
+                            if ('limit' in p.option or auto_limit) else example[p.string]
+                        )
                         if isinstance(p, PromptFragment) else p for p in post_fragments
                     ]
                 ))
