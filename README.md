@@ -1,4 +1,4 @@
-![PyPI](https://img.shields.io/pypi/v/promptml)
+[![PyPI](https://img.shields.io/pypi/v/promptml)](https://pypi.org/project/promptml/)
 [![license](https://img.shields.io/github/license/AlongWY/promptml.svg?maxAge=86400)](LICENSE)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/AlongWY/promptml/CI)
 
