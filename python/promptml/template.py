@@ -85,6 +85,7 @@ class PromptTemplate:
         remain_len = max_length - input_ids_len
         input_ids = input_ids + [self.tokenizer.pad_token_id] * remain_len
         attention_mask = [1] * input_ids_len + [0] * remain_len
+        assert len(input_ids) == max_length
         return {
             'input_ids': input_ids,
             'attention_mask': attention_mask,
@@ -141,6 +142,7 @@ class PromptTemplate:
             remain_len = max_length - input_ids_len
             input_ids = input_ids + [pad_token_id] * remain_len
             attention_mask = [1] * input_ids_len + [0] * remain_len
+            assert len(input_ids) == max_length
             return {
                 'input_ids': input_ids,
                 'attention_mask': attention_mask,
