@@ -44,10 +44,10 @@ class PromptTemplate:
                 self.post_fragments.append(current)
 
     def render(self, data: Union[dict, Union[Dataset, DatasetDict]], max_length=128):
-        if isinstance(data, dict):
-            return self.render_dict(data, max_length=max_length)
-        elif isinstance(data, Dataset) or isinstance(data, DatasetDict):
+        if isinstance(data, Dataset) or isinstance(data, DatasetDict):
             return self.render_dataset(data, max_length=max_length)
+        elif isinstance(data, dict):
+            return self.render_dict(data, max_length=max_length)
         else:
             raise NotImplementedError
 

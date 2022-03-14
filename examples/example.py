@@ -16,26 +16,22 @@ def main():
     print("building tokenizer")
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
 
-    print("building template")
+    print("rendering simple template")
     template = PromptTemplate("[cls]A [mask] news : [text1|limit][text2][sep]", tokenizer)
-
-    print("rendering template")
     start = time.time()
     res = template.render({"text1": "hello world fuck", "text2": "world"}, max_length=9)
     end = time.time()
     print("render time cost", end - start, 's')
     print(tokenizer.decode(res['input_ids']))
 
+    print("rendering imdb template")
+    template = PromptTemplate("[cls]A [mask] news : [text|limit][sep]", tokenizer)
     start = time.time()
     imdb = load_dataset("imdb")
-    imdb = res.render(imdb, max_length=128)
-    print(res)
+    imdb = template.render(imdb, max_length=128)
     print("render time cost", end - start, 's')
     print(imdb)
 
-
-if __name__ == '__main__':
-    main()
 
 if __name__ == '__main__':
     main()

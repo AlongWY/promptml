@@ -1,6 +1,6 @@
 [package]
 name = "promptml"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "AGPL-3.0"
 authors = ["ylfeng <ylfeng@ir.hit.edu.cn>"]
@@ -17,7 +17,6 @@ crate-type = ["cdylib"]
 [dependencies]
 nom = { version = "7" }
 itertools = { version = "0.10" }
-tokenizers = { version = "0.11", features = ["http"] }
 pyo3 = { version = "0.16", features = ["extension-module"] }
 
 [package.metadata.maturin]
