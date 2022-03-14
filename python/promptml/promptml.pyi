@@ -13,5 +13,5 @@ class PromptTemplate:
         pass
 
 
-def parse_markup(template: str) -> List[PromptFragment]:
+def parse(template: str) -> List[PromptFragment]:
     pass

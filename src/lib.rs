@@ -11,6 +11,7 @@ use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
 use std::collections::HashSet;
 use std::fmt;
+use tokenizers::tokenizer::Tokenizer;
 
 #[pyclass]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,8 +23,8 @@ pub struct PromptFragment {
 }
 
 #[pyclass]
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptTemplate {
+    pub tokenizer: Tokenizer,
     #[pyo3(get, set)]
     pub fragments: Vec<PromptFragment>,
 }
@@ -31,9 +32,11 @@ pub struct PromptTemplate {
 #[pymethods]
 impl PromptTemplate {
     #[new]
-    fn new(template: &str) -> PyResult<Self> {
+    fn new(template: &str, tokenizer: &str) -> PyResult<Self> {
         Ok(PromptTemplate {
             fragments: py_parse_markup(template)?,
+            tokenizer: Tokenizer::from_pretrained(tokenizer, None)
+                .map_err(|e| PyOSError::new_err(e.to_string()))?,
         })
     }
 
@@ -187,7 +190,7 @@ where
 }
 
 #[pyfunction]
-#[pyo3(name = "parse_markup")]
+#[pyo3(name = "parse")]
 fn py_parse_markup(template: &str) -> PyResult<Vec<PromptFragment>> {
     parse_markup::<()>(template)
         .map_err(|e| PyOSError::new_err(e.to_string()))
