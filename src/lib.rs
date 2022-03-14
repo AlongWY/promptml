@@ -9,10 +9,13 @@ use nom::sequence::{delimited, pair, preceded};
 use nom::IResult;
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 
-#[pyclass]
+#[pyclass(module = "promptml")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptFragment {
     #[pyo3(get, set)]
@@ -21,7 +24,8 @@ pub struct PromptFragment {
     pub option: Option<HashSet<String>>,
 }
 
-#[pyclass]
+#[pyclass(module = "promptml")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptTemplate {
     #[pyo3(get, set)]
     pub fragments: Vec<PromptFragment>,
@@ -47,6 +51,24 @@ impl PromptTemplate {
 
 #[pymethods]
 impl PromptFragment {
+    #[new]
+    fn new(string: Option<&str>, option: Option<&PyDict>) -> PyResult<Self> {
+        let string = match string {
+            None => String::new(),
+            Some(s) => s.to_string(),
+        };
+
+        let option = match option {
+            None => None,
+            Some(o) => o.extract()?,
+        };
+
+        Ok(PromptFragment {
+            string: string,
+            option: option,
+        })
+    }
+
     fn __str__(slf: PyRef<Self>) -> String {
         slf.display()
     }
@@ -55,6 +77,42 @@ impl PromptFragment {
         match &slf.option {
             Some(_) => format!("[{}]", slf.string),
             None => format!("\"{}\"", slf.string),
+        }
+    }
+
+    fn __hash__(slf: PyRef<Self>) -> isize {
+        let mut s = DefaultHasher::new();
+        slf.display().hash(&mut s);
+        s.finish() as isize
+    }
+
+    fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        let dict = PyDict::new(py);
+        dict.set_item("string", self.string.clone())?;
+        match &self.option {
+            None => {}
+            Some(option) => {
+                dict.set_item("option", option.clone())?;
+            }
+        }
+
+        Ok(dict)
+    }
+
+    fn __setstate__(&mut self, py: Python, state: PyObject) -> PyResult<()> {
+        match state.extract::<&PyDict>(py) {
+            Ok(state) => {
+                for (key, value) in state {
+                    let key: &str = key.extract()?;
+                    match key {
+                        "string" => self.string = value.extract()?,
+                        "option" => self.option = Some(value.extract()?),
+                        _ => {}
+                    }
+                }
+                Ok(())
+            }
+            Err(e) => Err(e),
         }
     }
 }
@@ -97,7 +155,7 @@ impl fmt::Display for PromptFragment {
                 if option.is_empty() {
                     write!(f, "[{}]", self.string)
                 } else {
-                    write!(f, "[{}|{}]", self.string, option.iter().join(","))
+                    write!(f, "[{}|{}]", self.string, option.iter().sorted().join(","))
                 }
             }
             None => write!(f, "{}", self.string),

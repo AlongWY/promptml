@@ -5,6 +5,21 @@ class PromptFragment:
     string: str
     option: Optional[Set[str]]
 
+    def __init__(self, string: Optional[str] = None, option: Optional[Set[str]] = None):
+        pass
+
+    def __str__(self):
+        pass
+
+    def __hash__(self):
+        pass
+
+    def __getstate__(self):
+        pass
+
+    def __setstate__(self):
+        pass
+
 
 class PromptTemplate:
     fragments: List[PromptFragment]

@@ -2,7 +2,7 @@ from itertools import chain
 from typing import List, Union
 from datasets import Dataset, DatasetDict
 from transformers import PreTrainedTokenizer
-from .promptml import parse, PromptFragment
+from .promptml import PromptFragment, PromptTemplate as RustPromptTemplate
 
 
 class PromptTemplate:
@@ -11,12 +11,12 @@ class PromptTemplate:
 
     # todo: write in rust
     def __init__(self, template: str, tokenizer: PreTrainedTokenizer):
-        self.fragments = parse(template)
+        self.base = RustPromptTemplate(template)
         self.tokenizer = tokenizer
         self.pre_fragments = []
         self.post_fragments: List[Union[List[int], PromptFragment]] = []
         self.template_length = 0
-        for fragment in self.fragments:
+        for fragment in self.base.fragments:
             current = fragment
             if current.option is None:
                 current = self.tokenizer(
@@ -121,7 +121,7 @@ class PromptTemplate:
         mask_token_id = self.tokenizer.mask_token_id
         pad_token_id = self.tokenizer.pad_token_id
 
-        def build(example):
+        def build_example(example):
             total_length = sum(
                 [len(example[p.string]) if isinstance(p, PromptFragment) else len(p) for p in post_fragments]
             )
@@ -130,12 +130,12 @@ class PromptTemplate:
                 input_ids = list(chain.from_iterable(
                     [
                         (example[p.string][:-length_pruning] if 'limit' in p.option else example[p.string])
-                        if isinstance(p, PromptFragment) else p for p in self.post_fragments
+                        if isinstance(p, PromptFragment) else p for p in post_fragments
                     ]
                 ))
             else:
                 input_ids = list(chain.from_iterable(
-                    [example[p.string] if isinstance(p, PromptFragment) else p for p in self.post_fragments]
+                    [example[p.string] if isinstance(p, PromptFragment) else p for p in post_fragments]
                 ))
             input_ids_len = len(input_ids)
             remain_len = max_length - input_ids_len
@@ -147,6 +147,9 @@ class PromptTemplate:
                 'labels_mask_pos': input_ids.index(mask_token_id)
             }
 
-        dataset = dataset.map(build, batched=False)
+        dataset = dataset.map(
+            function=build_example,
+            batched=False,
+        )
 
         return dataset

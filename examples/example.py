@@ -21,7 +21,7 @@ def main():
     start = time.time()
     res = template.render({"text1": "hello world fuck", "text2": "world"}, max_length=9)
     end = time.time()
-    print("render time cost", end - start, 's')
+    print("render example time cost", end - start, 's')
     print(tokenizer.decode(res['input_ids']))
 
     print("rendering imdb template")
@@ -29,8 +29,8 @@ def main():
     start = time.time()
     imdb = load_dataset("imdb")
     imdb = template.render(imdb, max_length=128)
-    print("render time cost", end - start, 's')
-    print(imdb)
+    end = time.time()
+    print("render imdb time cost", end - start, 's')
 
 
 if __name__ == '__main__':
