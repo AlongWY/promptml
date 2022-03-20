@@ -5,7 +5,7 @@ from transformers import PreTrainedTokenizer
 from .promptml import PromptFragment, PromptTemplate as RustPromptTemplate
 
 
-class PromptTemplate:
+class PythonPromptTemplate:
     fragments: List[PromptFragment]
     tokenizer: PreTrainedTokenizer
 

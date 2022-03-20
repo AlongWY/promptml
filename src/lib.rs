@@ -1,12 +1,6 @@
+mod parser;
+use crate::parser::parse_markup;
 use itertools::Itertools;
-use nom::branch::alt;
-use nom::bytes::complete::{is_a, is_not, tag};
-use nom::character::complete::char;
-use nom::combinator::{map, opt, value, verify};
-use nom::error::{FromExternalError, ParseError};
-use nom::multi::{fold_many0, separated_list0};
-use nom::sequence::{delimited, pair, preceded};
-use nom::IResult;
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -15,7 +9,8 @@ use std::collections::HashSet;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
-#[pyclass(module = "promptml")]
+#[pyclass(module = "promptml", subclass)]
+#[pyo3(text_signature = "(template, /)")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptFragment {
     #[pyo3(get, set)]
@@ -24,11 +19,28 @@ pub struct PromptFragment {
     pub option: Option<HashSet<String>>,
 }
 
-#[pyclass(module = "promptml")]
+#[pyclass(module = "promptml", subclass)]
+#[pyo3(text_signature = "(string, option, /)")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptTemplate {
     #[pyo3(get, set)]
     pub fragments: Vec<PromptFragment>,
+}
+
+#[pyclass]
+struct PromptFragmentIter {
+    inner: std::vec::IntoIter<PromptFragment>,
+}
+
+#[pymethods]
+impl PromptFragmentIter {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<PromptFragment> {
+        slf.inner.next()
+    }
 }
 
 #[pymethods]
@@ -46,6 +58,61 @@ impl PromptTemplate {
 
     fn __repr__(slf: PyRef<Self>) -> String {
         slf.fragments.iter().join("")
+    }
+
+    fn __iter__(slf: PyRef<Self>) -> PyResult<Py<PromptFragmentIter>> {
+        let iter = PromptFragmentIter {
+            inner: slf.fragments.clone().into_iter(),
+        };
+        Py::new(slf.py(), iter)
+    }
+
+    fn __len__(&self) -> PyResult<usize> {
+        Ok(self.fragments.len())
+    }
+
+    fn __getitem__(&self, idx: usize) -> PyResult<PromptFragment> {
+        Ok(self.fragments[idx].clone())
+    }
+
+    fn __hash__(slf: PyRef<Self>) -> u64 {
+        let mut s = DefaultHasher::new();
+        slf.display().hash(&mut s);
+        s.finish()
+    }
+
+    fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
+        let dict = PyDict::new(py);
+        dict.set_item("template", format!("{}", self))?;
+        Ok(dict)
+    }
+
+    fn __setstate__(&mut self, py: Python, state: PyObject) -> PyResult<()> {
+        match state.extract::<&PyDict>(py) {
+            Ok(state) => {
+                for (key, value) in state {
+                    let key: &str = key.extract()?;
+                    match key {
+                        "template" => self.fragments = py_parse_markup(value.extract()?)?,
+                        _ => {}
+                    }
+                }
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl PromptTemplate {
+    fn display(self: &Self) -> String {
+        format!("{}", self)
+    }
+}
+
+impl fmt::Display for PromptTemplate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.fragments.iter().join(""))
     }
 }
 
@@ -80,10 +147,10 @@ impl PromptFragment {
         }
     }
 
-    fn __hash__(slf: PyRef<Self>) -> isize {
+    fn __hash__(slf: PyRef<Self>) -> u64 {
         let mut s = DefaultHasher::new();
         slf.display().hash(&mut s);
-        s.finish() as isize
+        s.finish()
     }
 
     fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
@@ -163,86 +230,6 @@ impl fmt::Display for PromptFragment {
     }
 }
 
-fn parse_control<'a, E: ParseError<&'a str>>(
-    input: &'a str,
-) -> IResult<&'a str, (&'a str, Option<Vec<&'a str>>), E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
-{
-    let parse_control_option =
-        preceded(tag("|"), separated_list0(is_a("#,"), parse_control_string));
-    let control = pair(parse_control_string, opt(parse_control_option));
-    delimited(char('['), control, char(']'))(input)
-}
-
-fn parse_control_string<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
-{
-    let not_control = is_not("[]|#,");
-    verify(not_control, |s: &str| !s.is_empty())(input)
-}
-
-fn parse_escaped_char<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
-{
-    preceded(
-        char('\\'),
-        alt((
-            value('\\', char('\\')),
-            value('[', char('[')),
-            value(']', char(']')),
-        )),
-    )(input)
-}
-
-fn parse_string<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
-{
-    let not_control = is_not("\\[]");
-    verify(not_control, |s: &str| !s.is_empty())(input)
-}
-
-fn parse_fragment<'a, E>(input: &'a str) -> IResult<&'a str, PromptFragment, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
-{
-    alt((
-        map(parse_escaped_char, PromptFragment::char),
-        map(parse_control, PromptFragment::control),
-        map(parse_string, PromptFragment::string),
-    ))(input)
-}
-
-pub fn parse_markup<'a, E>(input: &'a str) -> IResult<&'a str, Vec<PromptFragment>, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
-{
-    let mut build_string = fold_many0(
-        // Our parser function– parses a single fragment
-        parse_fragment,
-        Vec::new,
-        |mut vec, fragment| {
-            match vec.last_mut() {
-                None => {
-                    vec.push(fragment);
-                }
-                Some(last) => {
-                    if last.option.is_none() && fragment.option.is_none() {
-                        last.string.push_str(&fragment.string)
-                    } else {
-                        vec.push(fragment);
-                    }
-                }
-            }
-            vec
-        },
-    );
-    build_string(input)
-}
-
 #[pyfunction]
 #[pyo3(name = "parse")]
 fn py_parse_markup(template: &str) -> PyResult<Vec<PromptFragment>> {
@@ -259,40 +246,4 @@ fn promptengine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PromptFragment>()?;
     m.add_class::<PromptTemplate>()?;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::parse_markup;
-    use crate::PromptFragment;
-
-    #[test]
-    fn it_works() {
-        assert_eq!(
-            parse_markup::<()>("\\[hello\\]"),
-            Ok(("", vec![PromptFragment::string("[hello]"),]))
-        );
-        assert_eq!(
-            parse_markup::<()>("\\\\"),
-            Ok(("", vec![PromptFragment::string("\\"),]))
-        );
-        assert_eq!(
-            parse_markup::<()>("[hello]"),
-            Ok(("", vec![PromptFragment::control(("hello", None))]))
-        );
-        assert_eq!(
-            parse_markup::<()>("hello"),
-            Ok(("", vec![PromptFragment::string("hello")]))
-        );
-        assert_eq!(
-            parse_markup::<()>("hello[hello]"),
-            Ok((
-                "",
-                vec![
-                    PromptFragment::string("hello"),
-                    PromptFragment::control(("hello", None))
-                ]
-            ))
-        );
-    }
 }

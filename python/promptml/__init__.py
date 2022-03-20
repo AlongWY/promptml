@@ -1,2 +1,2 @@
 from .promptml import parse, PromptFragment
-from .template import PromptTemplate
+from .template import PythonPromptTemplate as PromptTemplate
