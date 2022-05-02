@@ -1,4 +1,3 @@
-from itertools import chain
 from typing import List, Union
 from datasets import Dataset, DatasetDict
 from transformers import PreTrainedTokenizer

@@ -132,7 +132,7 @@ impl fmt::Display for PromptFragment {
                 if option.is_empty() {
                     write!(f, "[{}]", self.string)
                 } else {
-                    write!(f, "[{}|{}]", self.string, option.iter().sorted().join(","))
+                    write!(f, "[{}|{}]", self.string, option.iter().join(","))
                 }
             }
             None => write!(f, "{}", self.string),
