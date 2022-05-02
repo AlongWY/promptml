@@ -6,10 +6,18 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
+/// A :obj:`PromptTemplate` works as a pipeline. It processes some raw text :obj:`Dict[str, str]`
+/// as input and outputs an :obj:`Dict[str, int]` for language models.
+///
+/// Args:
+///     template (:obj:`str`):
+///         The promptml template to render the raw texts.
+///
 #[pyclass(module = "promptml", subclass)]
-#[pyo3(text_signature = "(string, option, /)")]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[pyo3(text_signature = "(self, template)")]
+#[derive(Debug, Clone)]
 pub struct PromptTemplate {
+    pub tokenizer: PyObject,
     #[pyo3(get, set)]
     pub fragments: Vec<PromptFragment>,
 }
@@ -33,10 +41,29 @@ impl PromptFragmentIter {
 #[pymethods]
 impl PromptTemplate {
     #[new]
-    fn new(template: &str) -> PyResult<Self> {
+    fn new(template: Option<&str>, tokenizer: PyObject) -> PyResult<Self> {
+        let fragments = match template {
+            None => vec![],
+            Some(t) => py_parse_markup(t)?,
+        };
         Ok(PromptTemplate {
-            fragments: py_parse_markup(template)?,
+            tokenizer,
+            fragments,
         })
+    }
+
+    /// Parse promptml template to Fragments
+    ///
+    /// Args:
+    ///     template (:obj:`str`):
+    ///         The size of the final vocabulary, including all tokens and alphabet.
+    ///
+    /// Returns:
+    ///     A :obj:`List` of :class:`~prompt.PromptFragment`: The prompt fragments
+    #[staticmethod]
+    #[pyo3(text_signature = "(template)")]
+    fn parse(template: &str) -> PyResult<Vec<PromptFragment>> {
+        py_parse_markup(template)
     }
 
     fn __str__(slf: PyRef<Self>) -> String {

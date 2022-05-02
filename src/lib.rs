@@ -7,6 +7,7 @@ use crate::parser::parse_markup;
 use crate::template::PromptTemplate;
 use pyo3::prelude::*;
 
+/// PromptML Module
 #[pymodule]
 #[pyo3(name = "promptml")]
 fn promptml(_py: Python, m: &PyModule) -> PyResult<()> {

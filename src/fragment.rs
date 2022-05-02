@@ -2,34 +2,48 @@ use crate::parse_markup;
 use itertools::Itertools;
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashSet;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
+/// Parse promptml template to Fragments
+///
+/// Args:
+///     template (:obj:`str`):
+///         The size of the final vocabulary, including all tokens and alphabet.
+///
+/// Returns:
+///     A :obj:`List` of :class:`~prompt.PromptFragment`: The prompt fragments
 #[pyfunction]
-#[pyo3(name = "parse")]
+#[pyo3(name = "parse", text_signature = "(template)")]
 pub(crate) fn py_parse_markup(template: &str) -> PyResult<Vec<PromptFragment>> {
     parse_markup::<()>(template)
         .map_err(|e| PyOSError::new_err(e.to_string()))
         .map(|(_, res)| res)
 }
 
+/// A :obj:`PromptFragment` store template fragments(including string and options).
+///
+/// Args:
+///     string (:obj:`str`,`optional`):
+///         The string or mask name will be rendered.
+///     option (:obj:`List[str]`):
+///         The options will be applied to the fragment.
 #[pyclass(module = "promptml", subclass)]
-#[pyo3(text_signature = "(template, /)")]
+#[pyo3(text_signature = "(self, string=None, option=None)")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptFragment {
     #[pyo3(get, set)]
     pub string: String,
     #[pyo3(get, set)]
-    pub option: Option<HashSet<String>>,
+    pub option: Option<Vec<String>>,
 }
 
 #[pymethods]
 impl PromptFragment {
     #[new]
-    fn new(string: Option<&str>, option: Option<&PyDict>) -> PyResult<Self> {
+    fn new(string: Option<&str>, option: Option<&PyList>) -> PyResult<Self> {
         let string = match string {
             None => String::new(),
             Some(s) => s.to_string(),
@@ -40,10 +54,21 @@ impl PromptFragment {
             Some(o) => o.extract()?,
         };
 
-        Ok(PromptFragment {
-            string: string,
-            option: option,
-        })
+        Ok(PromptFragment { string, option })
+    }
+
+    /// Parse promptml template to Fragments
+    ///
+    /// Args:
+    ///     template (:obj:`str`):
+    ///         The size of the final vocabulary, including all tokens and alphabet.
+    ///
+    /// Returns:
+    ///     A :obj:`List` of :class:`~prompt.PromptFragment`: The prompt fragments
+    #[staticmethod]
+    #[pyo3(text_signature = "(template)")]
+    fn parse(template: &str) -> PyResult<Vec<Self>> {
+        py_parse_markup(template)
     }
 
     fn __str__(slf: PyRef<Self>) -> String {
@@ -115,7 +140,7 @@ impl PromptFragment {
             string: String::from(value),
             option: match option {
                 None => Some(Default::default()),
-                Some(value) => Some(value.into_iter().map(|x| x.to_string()).collect()),
+                Some(value) => Some(value.iter().map(|x| x.to_string()).collect()),
             },
         }
     }
