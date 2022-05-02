@@ -1,5 +1,4 @@
 use crate::PromptFragment;
-
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, is_not, tag};
 use nom::character::complete::char;

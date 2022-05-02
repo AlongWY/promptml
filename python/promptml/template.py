@@ -72,22 +72,23 @@ class PythonPromptTemplate:
         total_length = sum(
             [len(example[p.string]) if isinstance(p, PromptFragment) else len(p) for p in post_fragments]
         )
-        if total_length > max_length:
-            length_pruning = total_length - max_length
 
-            input_ids = list(chain.from_iterable(
-                [
-                    (
-                        example[p.string][:-length_pruning]
-                        if ('limit' in p.option or auto_limit) else example[p.string]
-                    )
-                    if isinstance(p, PromptFragment) else p for p in post_fragments
-                ]
-            ))
-        else:
-            input_ids = list(chain.from_iterable(
-                [example[p.string] if isinstance(p, PromptFragment) else p for p in post_fragments]
-            ))
+        length_pruning = total_length - max_length
+        input_ids = []
+        content_attention_mask = []
+
+        for p in post_fragments:
+            if isinstance(p, PromptFragment):
+                limit_flag = ('limit' in p.option or auto_limit) and (total_length > max_length)
+                if limit_flag:
+                    input_ids.extend(example[p.string][:-length_pruning])
+                    content_attention_mask.extend([1] * len(example[p.string][:-length_pruning]))
+                else:
+                    input_ids.extend(example[p.string])
+                    content_attention_mask.extend([1] * len(example[p.string]))
+            else:
+                input_ids.extend(p)
+                content_attention_mask.extend([0] * len(p))
 
         input_ids_len = len(input_ids)
         remain_len = max_length - input_ids_len
@@ -97,6 +98,7 @@ class PythonPromptTemplate:
         return {
             'input_ids': input_ids,
             'attention_mask': attention_mask,
+            'content_attention_mask': content_attention_mask,
             'labels_mask_pos': input_ids.index(self.tokenizer.mask_token_id)
         }
 
@@ -135,21 +137,23 @@ class PythonPromptTemplate:
             total_length = sum(
                 [len(example[p.string]) if isinstance(p, PromptFragment) else len(p) for p in post_fragments]
             )
-            if total_length > max_length:
-                length_pruning = total_length - max_length
-                input_ids = list(chain.from_iterable(
-                    [
-                        (
-                            example[p.string][:-length_pruning]
-                            if ('limit' in p.option or auto_limit) else example[p.string]
-                        )
-                        if isinstance(p, PromptFragment) else p for p in post_fragments
-                    ]
-                ))
-            else:
-                input_ids = list(chain.from_iterable(
-                    [example[p.string] if isinstance(p, PromptFragment) else p for p in post_fragments]
-                ))
+            length_pruning = total_length - max_length
+
+            input_ids = []
+            content_attention_mask = []
+            for p in post_fragments:
+                if isinstance(p, PromptFragment):
+                    limit_flag = ('limit' in p.option or auto_limit) and (total_length > max_length)
+                    if limit_flag:
+                        input_ids.extend(example[p.string][:-length_pruning])
+                        content_attention_mask.extend([1] * len(example[p.string][:-length_pruning]))
+                    else:
+                        input_ids.extend(example[p.string])
+                        content_attention_mask.extend([1] * len(example[p.string]))
+                else:
+                    input_ids.extend(p)
+                    content_attention_mask.extend([0] * len(p))
+
             input_ids_len = len(input_ids)
             remain_len = max_length - input_ids_len
             input_ids = input_ids + [pad_token_id] * remain_len
@@ -158,6 +162,7 @@ class PythonPromptTemplate:
             return {
                 'input_ids': input_ids,
                 'attention_mask': attention_mask,
+                'content_attention_mask': content_attention_mask,
                 'labels_mask_pos': input_ids.index(mask_token_id)
             }
 

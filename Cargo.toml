@@ -1,12 +1,12 @@
 [package]
 name = "promptml"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 license = "AGPL-3.0"
 authors = ["ylfeng <ylfeng@ir.hit.edu.cn>"]
 description = "A Parser for Prompt Markup Language."
-homepage = "https://github.com/AlongWY/PromptEngine"
-repository = "https://github.com/AlongWY/PromptEngine"
+homepage = "https://github.com/AlongWY/PromptML"
+repository = "https://github.com/AlongWY/PromptML"
 keywords = ["prompt"]
 exclude = [".github"]
 

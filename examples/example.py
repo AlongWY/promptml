@@ -19,7 +19,7 @@ def main():
     print("rendering simple template")
     template = PromptTemplate("[cls]A [mask] news : [text1|limit][text2][sep]", tokenizer)
     start = time.time()
-    res = template.render({"text1": "hello world fuck", "text2": "world"}, max_length=9)
+    res = template.render({"text1": "hello world", "text2": "test text"}, max_length=9)
     end = time.time()
     print("render example time cost", end - start, 's')
     print(tokenizer.decode(res['input_ids']))

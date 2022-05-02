@@ -1,8 +1,10 @@
+mod fragment;
 mod parser;
 mod template;
 
+use crate::fragment::{py_parse_markup, PromptFragment};
 use crate::parser::parse_markup;
-use crate::template::{py_parse_markup, PromptFragment, PromptTemplate};
+use crate::template::PromptTemplate;
 use pyo3::prelude::*;
 
 #[pymodule]
