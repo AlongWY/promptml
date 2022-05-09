@@ -21,6 +21,12 @@ class PythonPromptTemplate:
                 current = self.tokenizer(
                     current.string, add_special_tokens=False, return_token_type_ids=False, return_attention_mask=False
                 )['input_ids']
+            elif current.string == 'bos':
+                current = self.tokenizer.bos_token_id
+            elif current.string == 'eos':
+                current = self.tokenizer.eos_token_id
+            elif current.string == 'unk':
+                current = self.tokenizer.unk_token_id
             elif current.string == 'cls':
                 current = self.tokenizer.cls_token_id
             elif current.string == 'mask':
@@ -54,6 +60,7 @@ class PythonPromptTemplate:
 
     def render_dict(self, example: dict, max_length=128):
         for pre_fragment in self.pre_fragments:
+            # fixme
             key = pre_fragment.string
             fragment_max_length = max_length - self.template_length
             tokenizer = self.tokenizer
@@ -125,6 +132,7 @@ class PythonPromptTemplate:
                         return_attention_mask=False
                     )['input_ids']
                 },
+                desc="Promptml Tokenizing",
                 batched=True
             )
 
@@ -169,6 +177,7 @@ class PythonPromptTemplate:
 
         dataset = dataset.map(
             function=build_example,
+            desc="Promptml Building",
             batched=False,
         )
 
