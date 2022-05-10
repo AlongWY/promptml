@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  push:
   pull_request:
   release:
     types:
@@ -35,25 +36,17 @@ jobs:
           target: aarch64-apple-darwin
           profile: minimal
           default: true
-      - name: Build
-        run: cargo build --release
-      - name: Tests
-        run: cargo test --no-default-features --release
       - name: Build wheels - x86_64
         uses: messense/maturin-action@v1
         with:
           target: x86_64
-          args: -i python --release --out dist
-      - name: Install built wheel - x86_64
-        run: |
-          pip install promptml --no-index --find-links dist --force-reinstall
+          args: --release --out dist --no-sdist
       - name: Build wheels - universal2
         if: ${{ matrix.python-version >= '3.8' || matrix.python-version == '3.10' }}
         uses: messense/maturin-action@v1
         with:
-          args: -i python --release --universal2 --out dist --no-sdist
-      - name: Install built wheel - universal2
-        if: ${{ matrix.python-version >= '3.8' }}
+          args: --release --universal2 --out dist --no-sdist
+      - name: Install built wheel - x86_64
         run: |
           pip install promptml --no-index --find-links dist --force-reinstall
       - name: Upload wheels
@@ -66,13 +59,12 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
         target: [ x64, x86 ]
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.9
           architecture: ${{ matrix.target }}
       - name: Cargo cache
         uses: actions/cache@v2
@@ -84,25 +76,17 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-rust_cache
-      - name: Update rustup
-        run: rustup self update
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           default: true
-      - name: Build
-        if: matrix.target == 'x64'
-        run: cargo build --release
-      - name: Tests
-        if: matrix.target == 'x64'
-        run: cargo test --no-default-features --release
       - name: Build wheels
         uses: messense/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: -i python --release --out dist --no-sdist
+          args: --release --out dist --no-sdist
       - name: Install built wheel
         run: |
           pip install promptml --no-index --find-links dist --force-reinstall
@@ -116,10 +100,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
         target: [ x86_64, i686 ]
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+          architecture: x64
       - name: Cargo cache
         uses: actions/cache@v2
         with:
@@ -136,19 +123,12 @@ jobs:
           toolchain: stable
           profile: minimal
           default: true
-      - name: Build
-        run: cargo build --release
-      - name: Tests
-        run: cargo test --no-default-features --release
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
       - name: Build Wheels
         uses: messense/maturin-action@v1
         with:
           target: ${{ matrix.target }}
           manylinux: auto
-          args: -i python${{ matrix.python-version }} --release --out dist --no-sdist
+          args: --release --out dist --no-sdist
       - name: Install built wheel
         if: matrix.target == 'x86_64'
         run: |
@@ -176,5 +156,5 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI }}
         run: |
-          pip install --upgrade wheel pip setuptools twine
+          pip install --upgrade twine
           twine upload --skip-existing *
