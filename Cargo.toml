@@ -16,8 +16,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 nom = { version = "7" }
-pyo3 = { version = "0.16" }
 itertools = { version = "0.10" }
+pyo3 = { version = "0.16", features = ["extension-module"] }
 
 [features]
 default = []
