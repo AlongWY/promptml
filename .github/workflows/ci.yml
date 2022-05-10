@@ -40,12 +40,12 @@ jobs:
         uses: messense/maturin-action@v1
         with:
           target: x86_64
-          args: --release --out dist --no-sdist
+          args: -i python --release --out dist --no-sdist
       - name: Build wheels - universal2
         if: ${{ matrix.python-version >= '3.8' || matrix.python-version == '3.10' }}
         uses: messense/maturin-action@v1
         with:
-          args: --release --universal2 --out dist --no-sdist
+          args: -i python --release --universal2 --out dist --no-sdist
       - name: Install built wheel - x86_64
         run: |
           pip install promptml --no-index --find-links dist --force-reinstall
