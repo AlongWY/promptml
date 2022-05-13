@@ -13,7 +13,7 @@ Prompt Markup Language Parser.
 + The control strings can have some options, seperated with string by `|`, (e. g. `[title|upper]`, `[text|lower]`)
 + The control options can be multiple, seperated by `,`, (e. g. `[title|upper,rmpunt]`)
 
-# Examples will be prased
+# PromptML Examples will be prased
 
 1. `[cls]A [mask] news : [sent_0|lower,fix][sep|+]`
     1. String: `cls`       Control Options: {}
@@ -29,3 +29,22 @@ Prompt Markup Language Parser.
     4. String: ` ]`        Control Options: None
     5. String: `sent_0`    Control Options: {}
     6. String: `sep`       Control Options: {`+`}
+
+# PromptML Code Example
+
+```python
+from promptml import PromptTemplate
+from datasets import load_dataset
+from transformers import AutoTokenizer
+
+def main():
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
+    template = PromptTemplate("[cls]A [mask] news : [text|limit][sep]", tokenizer)
+    res = template.render({"text": "hello world"}, max_length=20)
+
+    imdb = load_dataset("imdb")
+    imdb = template.render(imdb, max_length=128)
+
+if __name__ == '__main__':
+    main()
+```
