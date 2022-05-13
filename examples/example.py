@@ -11,15 +11,15 @@ def main():
 
     for fragment in fragments:
         fragment: PromptFragment
-        print(f"\"{fragment.string}\"", fragment.option)
+        print(f"\"{fragment.string}\"", fragment.options)
 
     print("building tokenizer")
     tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
 
     print("rendering simple template")
-    template = PromptTemplate("[cls]A [mask] news : [text1|limit][text2][sep]", tokenizer)
+    template = PromptTemplate("[cls]A [mask] news : [text1|limit][text2][text1][sep]", tokenizer)
     start = time.time()
-    res = template.render({"text1": "hello world", "text2": "test text"}, max_length=9)
+    res = template.render({"text1": "hello world", "text2": "test text"}, max_length=20)
     end = time.time()
     print("render example time cost", end - start, 's')
     print(tokenizer.decode(res['input_ids']))

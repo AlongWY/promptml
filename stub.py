@@ -139,7 +139,7 @@ def write(module, directory, origin, check=False):
         (name, member) for name, member in inspect.getmembers(module) if inspect.ismodule(member)
     ]
 
-    filename = os.path.join(directory, "__init__.pyi")
+    filename = os.path.join(directory, f"{origin}.pyi")
     pyi_content = pyi_file(module)
     pyi_content = do_black(pyi_content, is_pyi=True)
     os.makedirs(directory, exist_ok=True)

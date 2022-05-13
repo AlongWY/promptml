@@ -4,20 +4,19 @@ from transformers import PreTrainedTokenizer
 from .promptml import PromptFragment, PromptTemplate as RustPromptTemplate
 
 
-class PythonPromptTemplate:
+class PythonPromptTemplate(RustPromptTemplate):
     fragments: List[PromptFragment]
     tokenizer: PreTrainedTokenizer
 
     # todo: write in rust
     def __init__(self, template: str, tokenizer: PreTrainedTokenizer):
-        self.base = RustPromptTemplate(template)
-        self.tokenizer = tokenizer
+        super(PythonPromptTemplate, self).__init__()
         self.pre_fragments = []
         self.post_fragments: List[Union[List[int], PromptFragment]] = []
         self.template_length = 0
-        for fragment in self.base.fragments:
+        for fragment in self.fragments:
             current = fragment
-            if current.option is None:
+            if current.options is None:
                 current = self.tokenizer(
                     current.string, add_special_tokens=False, return_token_type_ids=False, return_attention_mask=False
                 )['input_ids']
@@ -59,20 +58,23 @@ class PythonPromptTemplate:
             raise NotImplementedError
 
     def render_dict(self, example: dict, max_length=128):
+        new_example = {}
         for pre_fragment in self.pre_fragments:
             # fixme
             key = pre_fragment.string
             fragment_max_length = max_length - self.template_length
             tokenizer = self.tokenizer
-            example[key] = tokenizer(
-                example[key],
-                truncation=True,
-                max_length=fragment_max_length,
-                add_special_tokens=False,
-                return_token_type_ids=False,
-                return_attention_mask=False
-            )['input_ids']
+            if "key" not in new_example:
+                new_example[key] = tokenizer(
+                    example[key],
+                    truncation=True,
+                    max_length=fragment_max_length,
+                    add_special_tokens=False,
+                    return_token_type_ids=False,
+                    return_attention_mask=False
+                )['input_ids']
 
+        example = new_example
         auto_limit = self.auto_limit
         post_fragments = self.post_fragments
         total_length = sum(
@@ -85,7 +87,7 @@ class PythonPromptTemplate:
 
         for p in post_fragments:
             if isinstance(p, PromptFragment):
-                limit_flag = ('limit' in p.option or auto_limit) and (total_length > max_length)
+                limit_flag = ('limit' in p.options or auto_limit) and (total_length > max_length)
                 if limit_flag:
                     input_ids.extend(example[p.string][:-length_pruning])
                     content_attention_mask.extend([1] * len(example[p.string][:-length_pruning]))
@@ -114,16 +116,17 @@ class PythonPromptTemplate:
             dataset: Union[Dataset, DatasetDict],
             max_length=512,
     ):
+        tokenizer = self.tokenizer
+        pre_fragments = self.pre_fragments
+        template_length = self.template_length
 
-        dataset = dataset
-        for pre_fragment in self.pre_fragments:
-            key = pre_fragment.string
-            fragment_max_length = max_length - self.template_length
-            tokenizer = self.tokenizer
-
-            dataset = dataset.map(
-                lambda examples: {
-                    key: tokenizer(
+        def tokenize(examples):
+            res = {}
+            for pre_fragment in pre_fragments:
+                key = pre_fragment.string
+                fragment_max_length = max_length - template_length
+                if key not in res:
+                    res[key] = tokenizer(
                         examples[key],
                         truncation=True,
                         max_length=fragment_max_length,
@@ -131,10 +134,13 @@ class PythonPromptTemplate:
                         return_token_type_ids=False,
                         return_attention_mask=False
                     )['input_ids']
-                },
-                desc="Promptml Tokenizing",
-                batched=True
-            )
+            return res
+
+        dataset = dataset.map(
+            lambda examples: tokenize(examples),
+            desc="Promptml Tokenizing",
+            batched=True
+        )
 
         auto_limit = self.auto_limit
         post_fragments = self.post_fragments
@@ -151,7 +157,7 @@ class PythonPromptTemplate:
             content_attention_mask = []
             for p in post_fragments:
                 if isinstance(p, PromptFragment):
-                    limit_flag = ('limit' in p.option or auto_limit) and (total_length > max_length)
+                    limit_flag = ('limit' in p.options or auto_limit) and (total_length > max_length)
                     if limit_flag:
                         input_ids.extend(example[p.string][:-length_pruning])
                         content_attention_mask.extend([1] * len(example[p.string][:-length_pruning]))
@@ -172,7 +178,7 @@ class PythonPromptTemplate:
                 'input_ids': input_ids,
                 'attention_mask': attention_mask,
                 'content_attention_mask': content_attention_mask,
-                'labels_mask_pos': input_ids.index(mask_token_id)
+                'labels_mask_pos': input_ids.index(mask_token_id) if mask_token_id in input_ids else -1
             }
 
         dataset = dataset.map(

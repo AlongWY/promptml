@@ -14,15 +14,20 @@ use std::hash::{Hash, Hasher};
 ///         The promptml template to render the raw texts.
 ///
 #[pyclass(module = "promptml", subclass)]
-#[pyo3(text_signature = "(self, template)")]
+#[pyo3(text_signature = "(self, template, tokenizer)")]
 #[derive(Debug, Clone)]
 pub struct PromptTemplate {
+    /// the tokenizer for processing
+    #[pyo3(get, set)]
     pub tokenizer: PyObject,
+    /// the fragments of the processed template
     #[pyo3(get, set)]
     pub fragments: Vec<PromptFragment>,
 }
 
 #[pyclass]
+#[pyo3(text_signature = "(self)")]
+#[derive(Debug, Clone)]
 struct PromptFragmentIter {
     inner: std::vec::IntoIter<PromptFragment>,
 }

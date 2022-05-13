@@ -34,10 +34,12 @@ pub(crate) fn py_parse_markup(template: &str) -> PyResult<Vec<PromptFragment>> {
 #[pyo3(text_signature = "(self, string=None, option=None)")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromptFragment {
+    /// the content of the fragment
     #[pyo3(get, set)]
     pub string: String,
+    /// the options os the fragment
     #[pyo3(get, set)]
-    pub option: Option<Vec<String>>,
+    pub options: Option<Vec<String>>,
 }
 
 #[pymethods]
@@ -54,7 +56,10 @@ impl PromptFragment {
             Some(o) => o.extract()?,
         };
 
-        Ok(PromptFragment { string, option })
+        Ok(PromptFragment {
+            string,
+            options: option,
+        })
     }
 
     /// Parse promptml template to Fragments
@@ -76,7 +81,7 @@ impl PromptFragment {
     }
 
     fn __repr__(slf: PyRef<Self>) -> String {
-        match &slf.option {
+        match &slf.options {
             Some(_) => format!("[{}]", slf.string),
             None => format!("\"{}\"", slf.string),
         }
@@ -91,10 +96,10 @@ impl PromptFragment {
     fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<&'py PyDict> {
         let dict = PyDict::new(py);
         dict.set_item("string", self.string.clone())?;
-        match &self.option {
+        match &self.options {
             None => {}
             Some(option) => {
-                dict.set_item("option", option.clone())?;
+                dict.set_item("options", option.clone())?;
             }
         }
 
@@ -108,7 +113,7 @@ impl PromptFragment {
                     let key: &str = key.extract()?;
                     match key {
                         "string" => self.string = value.extract()?,
-                        "option" => self.option = Some(value.extract()?),
+                        "options" => self.options = Some(value.extract()?),
                         _ => {}
                     }
                 }
@@ -123,14 +128,14 @@ impl PromptFragment {
     pub(crate) fn char(value: char) -> Self {
         PromptFragment {
             string: String::from(value),
-            option: None,
+            options: None,
         }
     }
 
     pub(crate) fn string(value: &str) -> Self {
         PromptFragment {
             string: String::from(value),
-            option: None,
+            options: None,
         }
     }
 
@@ -138,7 +143,7 @@ impl PromptFragment {
         let (value, option) = value;
         PromptFragment {
             string: String::from(value),
-            option: match option {
+            options: match option {
                 None => Some(Default::default()),
                 Some(value) => Some(value.iter().map(|x| x.to_string()).collect()),
             },
@@ -152,7 +157,7 @@ impl PromptFragment {
 
 impl fmt::Display for PromptFragment {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.option {
+        match &self.options {
             Some(option) => {
                 if option.is_empty() {
                     write!(f, "[{}]", self.string)

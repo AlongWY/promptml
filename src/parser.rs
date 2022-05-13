@@ -75,7 +75,7 @@ where
                     vec.push(fragment);
                 }
                 Some(last) => {
-                    if last.option.is_none() && fragment.option.is_none() {
+                    if last.options.is_none() && fragment.options.is_none() {
                         last.string.push_str(&fragment.string)
                     } else {
                         vec.push(fragment);

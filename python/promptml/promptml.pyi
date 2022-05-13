@@ -1,32 +1,91 @@
-from typing import List, Optional, Set
+# Generated content DO NOT EDIT
+def parse(template):
+    """
+    Parse promptml template to Fragments
 
+    Args:
+        template (:obj:`str`):
+            The size of the final vocabulary, including all tokens and alphabet.
+
+    Returns:
+        A :obj:`List` of :class:`~prompt.PromptFragment`: The prompt fragments
+    """
+    pass
 
 class PromptFragment:
-    string: str
-    option: Optional[Set[str]]
+    """
+    A :obj:`PromptFragment` store template fragments(including string and options).
 
-    def __init__(self, string: Optional[str] = None, option: Optional[Set[str]] = None):
+    Args:
+        string (:obj:`str`,`optional`):
+            The string or mask name will be rendered.
+        option (:obj:`List[str]`):
+            The options will be applied to the fragment.
+    """
+
+    def __init__(self, string=None, option=None):
         pass
-
-    def __str__(self):
+    @property
+    def options(self):
+        """
+        the options os the fragment
+        """
         pass
+    @staticmethod
+    def parse(template):
+        """
+        Parse promptml template to Fragments
 
-    def __hash__(self):
+        Args:
+            template (:obj:`str`):
+                The size of the final vocabulary, including all tokens and alphabet.
+
+        Returns:
+            A :obj:`List` of :class:`~prompt.PromptFragment`: The prompt fragments
+        """
         pass
-
-    def __getstate__(self):
+    @property
+    def string(self):
+        """
+        the content of the fragment
+        """
         pass
-
-    def __setstate__(self):
-        pass
-
 
 class PromptTemplate:
-    fragments: List[PromptFragment]
+    """
+    A :obj:`PromptTemplate` works as a pipeline. It processes some raw text :obj:`Dict[str, str]`
+    as input and outputs an :obj:`Dict[str, int]` for language models.
 
-    def __init__(self, template: str):
+    Args:
+        template (:obj:`str`):
+            The promptml template to render the raw texts.
+
+    """
+
+    def __init__(self, template, tokenizer):
         pass
+    @property
+    def fragments(self):
+        """
+        the fragments of the processed template
+        """
+        pass
+    @staticmethod
+    def parse(template):
+        """
+        Parse promptml template to Fragments
 
+        Args:
+            template (:obj:`str`):
+                The size of the final vocabulary, including all tokens and alphabet.
 
-def parse(template: str) -> List[PromptFragment]:
-    pass
+        Returns:
+            A :obj:`List` of :class:`~prompt.PromptFragment`: The prompt fragments
+        """
+        pass
+    @property
+    def tokenizer(self):
+        """
+        the tokenizer for processing
+        """
+        pass
